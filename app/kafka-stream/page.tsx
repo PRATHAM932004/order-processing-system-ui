@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/order/kpi-card";
 import { JsonPayloadViewer } from "@/components/order/json-payload-viewer";
-import { useGetKafkaEventsQuery } from "@/store/api/order-api";
+import {
+  useGetKafkaEventsQuery,
+  useGetSystemStatusQuery,
+} from "@/store/api/order-api";
 import { useAppSelector } from "@/store";
 import { formatRelativeTime } from "@/lib/utils";
 import { Radio, Layers, RefreshCw } from "lucide-react";
@@ -62,6 +65,7 @@ const TOPICS: TopicInfo[] = [
 
 export default function KafkaStreamPage() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const user = useAppSelector((state) => state.auth.user);
   const {
     data: events = [],
     refetch,
@@ -70,7 +74,12 @@ export default function KafkaStreamPage() {
     skip: !isAuthenticated,
     pollingInterval: 3000,
   });
-  const [selectedTopic, setSelectedTopic] = useState<string>("ALL");
+  const { data: sysStatus } = useGetSystemStatusQuery(undefined, {
+    pollingInterval: 4000,
+  });
+  const [selectedTopic, setSelectedTopic] = useState<string>(
+    user?.role === "INVENTORY_MANAGER" ? "order.inventory" : "ALL"
+  );
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
 
   const handleCopyPayload = (id: string, payload: string) => {
@@ -110,7 +119,7 @@ export default function KafkaStreamPage() {
               variant="subtle"
               className="text-xs font-mono whitespace-nowrap shrink-0"
             >
-              Cluster: localhost:9092
+              Cluster: {sysStatus?.kafkaBootstrapServers || "localhost:9092"}
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
@@ -148,15 +157,25 @@ export default function KafkaStreamPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Broker Nodes"
-          value="1 / 1"
-          subtext="localhost:9092"
-          badge="KRaft Leader"
-          badgeVariant="success"
+          value={sysStatus ? `${sysStatus.activeBrokers} / 1` : "1 / 1"}
+          subtext={sysStatus?.kafkaBootstrapServers || "localhost:9092"}
+          badge={
+            sysStatus?.kafkaStatus === "OPERATIONAL"
+              ? "KRaft Leader"
+              : sysStatus?.kafkaStatus || "Checking"
+          }
+          badgeVariant={
+            sysStatus?.kafkaStatus === "OPERATIONAL" ? "success" : "danger"
+          }
         />
 
         <KpiCard
-          label="Configured Topics"
-          value="3 Topics"
+          label="Consumer Groups"
+          value={
+            sysStatus
+              ? `${sysStatus.activeConsumerGroups} / ${sysStatus.totalConsumerGroups} Active`
+              : "3 Topics"
+          }
           subtext="order.created / inventory / payment"
           badge="KafkaTopics.java"
           badgeVariant="default"
@@ -165,7 +184,11 @@ export default function KafkaStreamPage() {
         <KpiCard
           label="Total Outbox Events"
           value={events.length}
-          subtext="Recorded in outbox_events"
+          subtext={
+            sysStatus
+              ? `${sysStatus.unpublishedOutboxCount} pending in queue`
+              : "Recorded in outbox_events"
+          }
           badge="Live Stream"
           badgeVariant="success"
           pulsingDot={true}
@@ -173,10 +196,14 @@ export default function KafkaStreamPage() {
         />
 
         <KpiCard
-          label="Outbox Poll Interval"
-          value="500ms"
-          subtext="OutboxPublisher scheduled relay"
-          badge="Batch: 50"
+          label="Outbox Relay"
+          value={
+            sysStatus?.lastOutboxRelayMs != null
+              ? `${sysStatus.lastOutboxRelayMs}ms`
+              : `${sysStatus?.outboxPollIntervalMs ?? 1000}ms`
+          }
+          subtext={`Poll interval: ${sysStatus?.outboxPollIntervalMs ?? 1000}ms`}
+          badge={`Batch: ${sysStatus?.outboxBatchSize ?? 50}`}
           badgeVariant="neutral"
         />
       </div>

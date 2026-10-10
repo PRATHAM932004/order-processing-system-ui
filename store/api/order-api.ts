@@ -3,12 +3,16 @@ import {
   Order,
   Customer,
   Product,
+  ProductPayload,
+  UpdateStockPayload,
+  InventoryReservation,
   KafkaEvent,
   CreateOrderPayload,
   AuthResponse,
   AuthUser,
   LoginPayload,
   RegisterPayload,
+  SystemStatus,
 } from "@/lib/types";
 import type { RootState } from "../index";
 
@@ -36,7 +40,15 @@ export const orderApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Orders", "Order", "Products", "Customers", "KafkaEvents", "Auth"],
+  tagTypes: [
+    "Orders",
+    "Order",
+    "Products",
+    "Reservations",
+    "Customers",
+    "KafkaEvents",
+    "Auth",
+  ],
   endpoints: (builder) => ({
     login: builder.mutation<AuthResponse, LoginPayload>({
       query: (body) => ({
@@ -44,7 +56,14 @@ export const orderApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Orders", "Customers", "KafkaEvents", "Auth"],
+      invalidatesTags: [
+        "Orders",
+        "Customers",
+        "Products",
+        "Reservations",
+        "KafkaEvents",
+        "Auth",
+      ],
     }),
 
     register: builder.mutation<AuthResponse, RegisterPayload>({
@@ -87,12 +106,52 @@ export const orderApi = createApi({
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: ["Orders", "Products", "KafkaEvents"],
+      invalidatesTags: ["Orders", "Products", "Reservations", "KafkaEvents"],
     }),
 
     getProducts: builder.query<Product[], void>({
       query: () => "/products",
       providesTags: ["Products"],
+    }),
+
+    createProduct: builder.mutation<Product, ProductPayload>({
+      query: (body) => ({
+        url: "/products",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Products"],
+    }),
+
+    updateProduct: builder.mutation<Product, { id: string; body: ProductPayload }>({
+      query: ({ id, body }) => ({
+        url: `/products/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Products", "Reservations"],
+    }),
+
+    updateProductStock: builder.mutation<Product, UpdateStockPayload>({
+      query: ({ id, stockQuantity }) => ({
+        url: `/products/${id}/stock`,
+        method: "PATCH",
+        body: { stockQuantity },
+      }),
+      invalidatesTags: ["Products"],
+    }),
+
+    deleteProduct: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Products"],
+    }),
+
+    getInventoryReservations: builder.query<InventoryReservation[], void>({
+      query: () => "/products/reservations",
+      providesTags: ["Reservations"],
     }),
 
     getCustomers: builder.query<Customer[], void>({
@@ -109,6 +168,10 @@ export const orderApi = createApi({
       },
       providesTags: ["KafkaEvents"],
     }),
+
+    getSystemStatus: builder.query<SystemStatus, void>({
+      query: () => "/system/status",
+    }),
   }),
 });
 
@@ -120,6 +183,12 @@ export const {
   useGetOrderByIdQuery,
   useCreateOrderMutation,
   useGetProductsQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useUpdateProductStockMutation,
+  useDeleteProductMutation,
+  useGetInventoryReservationsQuery,
   useGetCustomersQuery,
   useGetKafkaEventsQuery,
+  useGetSystemStatusQuery,
 } = orderApi;

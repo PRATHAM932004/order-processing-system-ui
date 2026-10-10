@@ -63,7 +63,7 @@ export function PlaceOrderForm() {
       customerId: user?.id || "",
       customerName: user?.name || "",
       customerEmail: user?.email || "",
-      paymentMethod: "CREDIT_LINE",
+      paymentMethod: "UPI",
       deliveryNotes: "Priority Delivery via Kafka Event Pipeline",
       items: [],
     },
@@ -76,6 +76,7 @@ export function PlaceOrderForm() {
   });
 
   const watchedCustomerId = watch("customerId");
+  const watchedPaymentMethod = watch("paymentMethod");
   const watchedItems = watch("items") || [];
 
   // Keep customerId bound to self for normal CUSTOMER role, or default to first customer for ADMIN
@@ -209,6 +210,7 @@ export function PlaceOrderForm() {
 
       const payload = {
         customerId: targetCustomerId,
+        paymentMethod: values.paymentMethod,
         items: values.items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
@@ -628,6 +630,82 @@ export function PlaceOrderForm() {
                 </div>
               </div>
 
+              {/* Payment Method & Failure Simulation Selector */}
+              <div className="pt-3 border-t border-border space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">
+                    Payment Gateway Mode
+                  </span>
+                  <Badge
+                    variant={
+                      watchedPaymentMethod === "MOCK_FAIL"
+                        ? "cancelled"
+                        : "confirmed"
+                    }
+                    className="text-[10px] px-1.5 py-0 font-mono"
+                  >
+                    {watchedPaymentMethod === "MOCK_FAIL"
+                      ? "SIMULATE DECLINE"
+                      : "WILL SUCCEED"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {(
+                    [
+                      {
+                        id: "UPI",
+                        label: "UPI Instant",
+                        sub: "Payment Succeeds",
+                      },
+                      {
+                        id: "CREDIT_CARD",
+                        label: "Corporate Card",
+                        sub: "Payment Succeeds",
+                      },
+                      {
+                        id: "NET_BANKING",
+                        label: "Net Banking",
+                        sub: "Payment Succeeds",
+                      },
+                      {
+                        id: "MOCK_FAIL",
+                        label: "Simulate Decline",
+                        sub: "Fails & Restores Stock",
+                      },
+                    ] as const
+                  ).map((pm) => {
+                    const isSelected = watchedPaymentMethod === pm.id;
+                    const isFail = pm.id === "MOCK_FAIL";
+                    return (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() =>
+                          setValue("paymentMethod", pm.id, {
+                            shouldValidate: true,
+                          })
+                        }
+                        className={`p-2.5 rounded-lg border text-left transition-all ${
+                          isSelected
+                            ? isFail
+                              ? "border-rose-500 bg-rose-50 dark:bg-rose-950/40 ring-1 ring-rose-500/40 text-rose-900 dark:text-rose-200"
+                              : "border-primary bg-primary-subtle ring-1 ring-primary/40 text-foreground"
+                            : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        <span className="font-semibold block text-[11px]">
+                          {pm.label}
+                        </span>
+                        <span className="text-[10px] opacity-80 block mt-0.5">
+                          {pm.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Kafka Payload Preview Toggle */}
               <div className="pt-2">
                 <button
@@ -651,6 +729,7 @@ export function PlaceOrderForm() {
                     {JSON.stringify(
                       {
                         customerId: isAdmin ? watchedCustomerId : user?.id,
+                        paymentMethod: watchedPaymentMethod,
                         items: watchedItems.map((i) => ({
                           productId: i.productId,
                           quantity: i.quantity,
@@ -700,7 +779,7 @@ export function PlaceOrderForm() {
                       customerId: isAdmin ? watchedCustomerId : user?.id || "",
                       customerName: selectedCustomer?.name || "",
                       customerEmail: selectedCustomer?.email || "",
-                      paymentMethod: "CREDIT_LINE",
+                      paymentMethod: "UPI",
                       deliveryNotes: "Priority Delivery via Kafka Event Pipeline",
                       items: [],
                     })

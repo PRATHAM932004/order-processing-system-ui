@@ -23,7 +23,7 @@ export const createOrderFormSchema = z.object({
     .array(orderItemSchema)
     .min(1, "You must select at least one product before placing the order"),
   deliveryNotes: z.string().max(250, "Notes cannot exceed 250 characters").optional(),
-  paymentMethod: z.enum(["CREDIT_LINE", "NET_BANKING", "UPI"], {
+  paymentMethod: z.enum(["UPI", "CREDIT_CARD", "NET_BANKING", "MOCK_FAIL"], {
     required_error: "Select payment method",
   }),
 });
@@ -33,7 +33,7 @@ export type CreateOrderFormValues = z.infer<typeof createOrderFormSchema>;
 export const loginFormSchema = z.object({
   email: z.string().email("Please enter a valid work email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["OPERATOR", "ADMIN", "CUSTOMER"]).default("OPERATOR"),
+  role: z.enum(["OPERATOR", "ADMIN", "CUSTOMER", "INVENTORY_MANAGER"]).default("ADMIN"),
   rememberMe: z.boolean().default(false),
 });
 
@@ -51,3 +51,15 @@ export const registerFormSchema = z.object({
 });
 
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
+
+export const productFormSchema = z.object({
+  name: z.string().min(2, "Product name must be at least 2 characters"),
+  category: z.string().min(2, "Category is required"),
+  price: z.coerce.number().min(0, "Price must be zero or positive"),
+  stockQuantity: z.coerce
+    .number()
+    .int("Stock must be a whole number")
+    .min(0, "Stock cannot be negative"),
+});
+
+export type ProductFormValues = z.infer<typeof productFormSchema>;

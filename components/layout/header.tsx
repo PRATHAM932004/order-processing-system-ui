@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,6 +8,7 @@ import {
   Bell,
   Sun,
   Moon,
+  Monitor,
   Zap,
   ChevronRight,
   LogOut,
@@ -19,7 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { logout } from "@/store/auth-slice";
-import { orderApi } from "@/store/api/order-api";
+import { orderApi, useGetSystemStatusQuery } from "@/store/api/order-api";
+import { useTheme } from "@/providers/theme-provider";
 import { toast } from "sonner";
 
 interface HeaderProps {
@@ -30,17 +32,14 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { theme, resolvedTheme, cycleTheme } = useTheme();
   const currentUser = useAppSelector((state) => state.auth.user);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    if (!isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+  const { data: sysStatus, isError: isSysError } = useGetSystemStatusQuery(
+    undefined,
+    {
+      pollingInterval: 4000,
     }
-  };
+  );
 
   const handleSignOut = () => {
     dispatch(logout());
@@ -64,6 +63,7 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
       let label = part;
       if (part === "orders") label = "Orders";
       else if (part === "new") label = "Place Order";
+      else if (part === "inventory") label = "Inventory & Stock";
       else if (part === "kafka-stream") label = "Kafka Stream";
       else if (part === "auth") label = "Auth";
       else if (part === "login") label = "Login";
@@ -100,8 +100,9 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
             <React.Fragment key={crumb.href + idx}>
               {idx > 0 && (
                 <ChevronRight
-                  className={`h-3 w-3 text-border shrink-0 ${idx < breadcrumbs.length - 2 ? "hidden sm:inline" : ""
-                    }`}
+                  className={`h-3 w-3 text-border shrink-0 ${
+                    idx < breadcrumbs.length - 2 ? "hidden sm:inline" : ""
+                  }`}
                 />
               )}
               {idx === breadcrumbs.length - 1 ? (
@@ -111,8 +112,9 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
               ) : (
                 <Link
                   href={crumb.href}
-                  className={`hover:text-foreground transition-colors truncate ${idx < breadcrumbs.length - 2 ? "hidden sm:inline" : ""
-                    }`}
+                  className={`hover:text-foreground transition-colors truncate ${
+                    idx < breadcrumbs.length - 2 ? "hidden sm:inline" : ""
+                  }`}
                 >
                   {crumb.label}
                 </Link>
@@ -136,27 +138,52 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
           </kbd>
         </div>
 
-        {/* Live Kafka Latency Chip */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground">
-          <Zap className="h-3 w-3 text-emerald-500 animate-pulse" />
+        {/* Live Kafka Outbox Telemetry Chip */}
+        <div
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground"
+          title={
+            sysStatus
+              ? `Outbox Poll: ${sysStatus.outboxPollIntervalMs}ms | Pending in queue: ${sysStatus.unpublishedOutboxCount}`
+              : "Backend unreachable"
+          }
+        >
+          <Zap
+            className={`h-3 w-3 ${
+              !isSysError && sysStatus
+                ? "text-emerald-500 animate-pulse"
+                : "text-rose-500"
+            }`}
+          />
           <span className="hidden xl:inline">Outbox:</span>
-          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-            500ms
+          <span
+            className={`font-semibold ${
+              !isSysError && sysStatus
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+            }`}
+          >
+            {!isSysError && sysStatus
+              ? sysStatus.lastOutboxRelayMs != null
+                ? `${sysStatus.lastOutboxRelayMs}ms`
+                : `${sysStatus.outboxPollIntervalMs}ms`
+              : "Offline"}
           </span>
         </div>
 
-        {/* Theme Toggle */}
+        {/* Theme Toggle (System Default -> Light -> Dark) */}
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 rounded-lg shrink-0"
-          onClick={toggleDarkMode}
-          title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          className="h-9 w-9 rounded-lg shrink-0 relative"
+          onClick={cycleTheme}
+          title={`Theme: ${theme.toUpperCase()} (${resolvedTheme}) — Click to switch`}
         >
-          {isDarkMode ? (
-            <Sun className="h-4 w-4 text-amber-500" />
+          {theme === "system" ? (
+            <Monitor className="h-4 w-4 text-primary" />
+          ) : resolvedTheme === "dark" ? (
+            <Moon className="h-4 w-4 text-indigo-400" />
           ) : (
-            <Moon className="h-4 w-4 text-muted-foreground" />
+            <Sun className="h-4 w-4 text-amber-500" />
           )}
         </Button>
 
@@ -177,18 +204,24 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-xs">
               {currentUser.name[0]}
             </div>
-            <div className="hidden sm:flex flex-col text-left max-w-[140px]">
+            <div className="hidden sm:flex flex-col text-left max-w-[160px]">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-foreground leading-none truncate">
                   {currentUser.name}
                 </span>
                 <Badge
                   variant={
-                    currentUser.role === "ADMIN" ? "confirmed" : "subtle"
+                    currentUser.role === "ADMIN"
+                      ? "confirmed"
+                      : currentUser.role === "INVENTORY_MANAGER"
+                      ? "pending"
+                      : "subtle"
                   }
                   className="text-[9px] px-1.5 py-0 shrink-0"
                 >
-                  {currentUser.role}
+                  {currentUser.role === "INVENTORY_MANAGER"
+                    ? "INV_MGR"
+                    : currentUser.role}
                 </Badge>
               </div>
               <span className="text-[10px] text-muted-foreground mt-0.5 truncate">

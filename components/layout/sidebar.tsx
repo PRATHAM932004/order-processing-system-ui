@@ -8,20 +8,23 @@ import {
   ShoppingCart,
   PlusCircle,
   GitBranch,
-  Lock,
+  Boxes,
   Layers,
   Radio,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/store";
+import { useGetSystemStatusQuery } from "@/store/api/order-api";
 import { Button } from "@/components/ui/button";
+import { UserRole } from "@/lib/types";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  roles?: UserRole[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -31,15 +34,24 @@ const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
+    title: "Inventory & Stock",
+    href: "/inventory",
+    icon: Boxes,
+    badge: "Catalog",
+    roles: ["ADMIN", "INVENTORY_MANAGER"],
+  },
+  {
     title: "Orders",
     href: "/orders",
     icon: ShoppingCart,
+    roles: ["ADMIN", "CUSTOMER"],
   },
   {
     title: "Place Order",
     href: "/orders/new",
     icon: PlusCircle,
     badge: "Live API",
+    roles: ["ADMIN", "CUSTOMER"],
   },
   {
     title: "Kafka Event Stream",
@@ -56,6 +68,16 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const user = useAppSelector((state) => state.auth.user);
+  const { data: sysStatus, isError: isSysError } = useGetSystemStatusQuery(
+    undefined,
+    {
+      pollingInterval: 5000,
+    }
+  );
+
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.roles || (user?.role && item.roles.includes(user.role))
+  );
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -76,6 +98,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobileOpen, onMobileClose]);
+
+  const consoleLabel =
+    user?.role === "ADMIN"
+      ? "Admin Console"
+      : user?.role === "INVENTORY_MANAGER"
+      ? "Inventory Console"
+      : "Customer Portal";
 
   const sidebarContent = (
     <div className="flex flex-col justify-between h-full w-full bg-card text-foreground">
@@ -112,10 +141,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       {/* Scrollable Middle Navigation Items */}
       <div className="flex-1 overflow-y-auto p-3 space-y-1">
         <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {user?.role === "ADMIN" ? "Admin Console" : "Customer Portal"}
+          {consoleLabel}
         </div>
 
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             item.href === "/"
@@ -159,14 +188,28 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 border border-border/40 text-[11px]">
           <div className="flex items-center justify-between font-mono">
             <span className="text-muted-foreground">Backend</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              :8080
+            <span
+              className={`font-semibold flex items-center gap-1 ${
+                !isSysError && sysStatus
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  !isSysError && sysStatus
+                    ? "bg-emerald-500 animate-pulse"
+                    : "bg-rose-500"
+                }`}
+              />
+              {!isSysError && sysStatus ? `:${sysStatus.backendPort}` : "Offline"}
             </span>
           </div>
           <div className="flex items-center justify-between font-mono text-muted-foreground">
             <span>Kafka</span>
-            <span>localhost:9092</span>
+            <span className="truncate max-w-[130px]">
+              {sysStatus?.kafkaBootstrapServers || "localhost:9092"}
+            </span>
           </div>
           <div className="flex items-center justify-between font-mono text-muted-foreground">
             <span>Role</span>
@@ -179,8 +222,16 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
           <span className="font-mono">OrderFlow v2.0</span>
           <span className="flex items-center gap-1">
-            <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
-            Live DB
+            <Radio
+              className={`h-3 w-3 ${
+                sysStatus?.dbStatus === "HEALTHY"
+                  ? "text-emerald-500 animate-pulse"
+                  : "text-rose-500"
+              }`}
+            />
+            {sysStatus?.dbStatus === "HEALTHY"
+              ? `DB (${sysStatus.dbPingMs}ms)`
+              : "DB Offline"}
           </span>
         </div>
       </div>

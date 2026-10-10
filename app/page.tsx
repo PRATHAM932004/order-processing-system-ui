@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, RefreshCw } from "lucide-react";
+import { Plus, ArrowRight, RefreshCw, Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,20 +16,30 @@ import { StatusDonutChart } from "@/components/order/status-donut-chart";
 import { KafkaStreamCard } from "@/components/order/kafka-stream-card";
 import { OrdersDataTable } from "@/components/order/orders-data-table";
 import { SystemHealthBanner } from "@/components/order/system-health-banner";
-import { useGetOrdersQuery } from "@/store/api/order-api";
+import { useGetOrdersQuery, useGetProductsQuery } from "@/store/api/order-api";
 import { useAppSelector } from "@/store";
 
 export default function DashboardPage() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const user = useAppSelector((state) => state.auth.user);
+  const isInventoryManager = user?.role === "INVENTORY_MANAGER";
+
   const {
     data: orders = [],
     refetch,
     isFetching,
   } = useGetOrdersQuery(undefined, {
-    skip: !isAuthenticated,
+    skip: !isAuthenticated || isInventoryManager,
     pollingInterval: 3000,
   });
+
+  const { data: products = [], refetch: refetchProducts } = useGetProductsQuery(
+    undefined,
+    {
+      skip: !isAuthenticated,
+      pollingInterval: 5000,
+    }
+  );
 
   // Compute live KPI values strictly from real backend orders
   const totalCount = orders.length;
@@ -38,6 +48,11 @@ export default function DashboardPage() {
   const cancelledCount = orders.filter((o) => o.status === "CANCELLED").length;
   const successRate =
     totalCount > 0 ? ((confirmedCount / totalCount) * 100).toFixed(1) : "100.0";
+
+  const totalUnitsInStock = products.reduce(
+    (sum, p) => sum + (p.stockQuantity || 0),
+    0
+  );
 
   return (
     <div className="space-y-8 pb-10">
@@ -49,7 +64,9 @@ export default function DashboardPage() {
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
             {user?.role === "ADMIN"
-              ? "Admin Console: Real-time overview of all customer orders across PostgreSQL and Kafka topics."
+              ? "Admin Console: Real-time overview of all customer orders, inventory stock, and Kafka topics."
+              : isInventoryManager
+              ? `Inventory Console: Manage PostgreSQL product catalog (${products.length} products, ${totalUnitsInStock} total units) and monitor order.inventory events.`
               : `Customer Portal: Live tracking of orders placed by ${user?.name || "your account"}.`}
           </p>
         </div>
@@ -58,7 +75,10 @@ export default function DashboardPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
+            onClick={() => {
+              if (!isInventoryManager) refetch();
+              refetchProducts();
+            }}
             disabled={isFetching}
             className="h-9 gap-1.5 text-xs font-medium"
           >
@@ -68,27 +88,41 @@ export default function DashboardPage() {
             Refresh
           </Button>
 
-          <Button
-            asChild
-            variant="default"
-            size="default"
-            className="h-9 px-4 gap-2 text-xs font-semibold shadow-none bg-primary hover:bg-primary-hover text-white"
-          >
-            <Link href="/orders/new">
-              <Plus className="h-4 w-4" />
-              Place Order
-            </Link>
-          </Button>
+          {isInventoryManager ? (
+            <Button
+              asChild
+              variant="default"
+              size="default"
+              className="h-9 px-4 gap-2 text-xs font-semibold shadow-none bg-primary hover:bg-primary-hover text-white"
+            >
+              <Link href="/inventory">
+                <Boxes className="h-4 w-4" />
+                Manage Inventory
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              asChild
+              variant="default"
+              size="default"
+              className="h-9 px-4 gap-2 text-xs font-semibold shadow-none bg-primary hover:bg-primary-hover text-white"
+            >
+              <Link href="/orders/new">
+                <Plus className="h-4 w-4" />
+                Place Order
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Section 1 - KPI Cards Row (4 cards, grid cols 4) */}
+      {/* Section 1 - KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KpiCard
           label="Total Orders"
           value={totalCount.toLocaleString()}
           subtext={
-            user?.role === "ADMIN" ? "All customers in DB" : "Your placed orders"
+            user?.role === "ADMIN" ? "All customers in DB" : "Tracked orders"
           }
           badge="Live PostgreSQL"
           badgeVariant="neutral"
@@ -134,33 +168,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Section 3 - Recent Orders Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <div>
-            <CardTitle>Recent Orders</CardTitle>
-            <CardDescription className="mt-1">
-              Latest 5 orders from backend database across all asynchronous lifecycle states
-            </CardDescription>
-          </div>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="text-xs font-semibold text-primary hover:bg-primary-subtle"
-          >
-            <Link href="/orders" className="flex items-center gap-1">
-              View all orders <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <OrdersDataTable
-            orders={orders.slice(0, 5)}
-            pageSize={5}
-            showPagination={false}
-          />
-        </CardContent>
-      </Card>
+      {!isInventoryManager && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+              <CardTitle>Recent Orders</CardTitle>
+              <CardDescription className="mt-1">
+                Latest 5 orders from backend database across all asynchronous lifecycle states
+              </CardDescription>
+            </div>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-xs font-semibold text-primary hover:bg-primary-subtle"
+            >
+              <Link href="/orders" className="flex items-center gap-1">
+                View all orders <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <OrdersDataTable
+              orders={orders.slice(0, 5)}
+              pageSize={5}
+              showPagination={false}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 4 - Quick System Health Banner */}
       <SystemHealthBanner />

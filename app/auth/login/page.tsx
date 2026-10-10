@@ -31,9 +31,9 @@ export default function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      email: "alice@example.com",
+      email: "admin@order.com",
       password: "password123",
-      role: "CUSTOMER",
+      role: "ADMIN",
       rememberMe: true,
     },
   });
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   const quickFill = (
     email: string,
-    role: "OPERATOR" | "ADMIN" | "CUSTOMER",
+    role: "ADMIN" | "INVENTORY_MANAGER" | "CUSTOMER",
     label: string
   ) => {
     setValue("email", email);
@@ -61,10 +61,15 @@ export default function LoginPage() {
       toast.success(
         `Signed in as ${response.user.name} (${response.user.role})`
       );
-      router.push("/");
+      if (response.user.role === "INVENTORY_MANAGER") {
+        router.push("/inventory");
+      } else {
+        router.push("/");
+      }
     } catch (err: unknown) {
       const msg =
-        (err as { data?: { message?: string } })?.data?.message ||
+        (err as { data?: { error?: string; message?: string } })?.data?.error ||
+        (err as { data?: { error?: string; message?: string } })?.data?.message ||
         "Invalid email or password";
       toast.error(msg);
     }
@@ -81,7 +86,7 @@ export default function LoginPage() {
           Sign In to OrderFlow
         </h1>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Authenticate with the Spring Boot backend to place and monitor orders
+          Authenticate with the Spring Boot backend to manage inventory and orders
         </p>
       </div>
 
@@ -92,33 +97,34 @@ export default function LoginPage() {
             <Sparkles className="h-3 w-3 text-primary" />
             Seeded PostgreSQL Accounts (Password: password123):
           </span>
-          <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2.5 text-xs">
             <button
               type="button"
               onClick={() =>
-                quickFill("alice@example.com", "CUSTOMER", "Customer (Alice)")
+                quickFill("admin@order.com", "ADMIN", "Admin")
               }
-              className="px-2 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
+              className="px-3 py-2 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors text-left"
             >
-              Alice (Customer)
+              <span className="font-semibold block">Admin</span>
+              <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                admin@order.com
+              </span>
             </button>
             <button
               type="button"
               onClick={() =>
-                quickFill("bob@example.com", "CUSTOMER", "Customer (Bob - Fail Test)")
+                quickFill(
+                  "inventory.manager@order.com",
+                  "INVENTORY_MANAGER",
+                  "Inventory Manager"
+                )
               }
-              className="px-2 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
+              className="px-3 py-2 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors text-left"
             >
-              Bob (Pay Fail)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                quickFill("asha.mehta@example.com", "ADMIN", "Admin (Asha Mehta)")
-              }
-              className="px-2 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
-            >
-              Asha (Admin)
+              <span className="font-semibold block">Inventory Manager</span>
+              <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                inventory.manager@order.com
+              </span>
             </button>
           </div>
         </div>
@@ -137,7 +143,7 @@ export default function LoginPage() {
                       <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         type="email"
-                        placeholder="you@company.com"
+                        placeholder="you@order.com"
                         className="pl-9 h-9 text-xs"
                         {...field}
                       />

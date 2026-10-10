@@ -7,7 +7,7 @@ export type EventPhase =
   | "ORDER_CONFIRMED"
   | "FAILED";
 
-export type UserRole = "CUSTOMER" | "ADMIN";
+export type UserRole = "CUSTOMER" | "ADMIN" | "INVENTORY_MANAGER";
 
 export interface AuthUser {
   id: string;
@@ -53,6 +53,31 @@ export interface Product {
   lowStockThreshold?: number;
   sku?: string;
   description?: string;
+}
+
+export interface ProductPayload {
+  name: string;
+  category: string;
+  price: number;
+  stockQuantity: number;
+}
+
+export interface UpdateStockPayload {
+  id: string;
+  stockQuantity: number;
+}
+
+export type ReservationStatus = "RESERVED" | "FAILED" | "COMPENSATED";
+
+export interface InventoryReservation {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  category: string;
+  quantity: number;
+  status: ReservationStatus;
+  createdAt: string;
 }
 
 export interface OrderItem {
@@ -101,6 +126,7 @@ export interface KafkaEvent {
 
 export interface CreateOrderPayload {
   customerId?: string;
+  paymentMethod?: string;
   items: Array<{
     productId: string;
     quantity: number;
@@ -115,4 +141,23 @@ export interface OrderFilterParams {
   partition?: number | "all";
   page: number;
   pageSize: number;
+}
+
+export interface SystemStatus {
+  backendStatus: "CONNECTED" | "DISCONNECTED" | string;
+  backendPort: number;
+  dbStatus: "HEALTHY" | "DOWN" | string;
+  dbEndpoint: string;
+  dbPingMs: number;
+  kafkaStatus: "OPERATIONAL" | "DEGRADED" | "DOWN" | string;
+  kafkaBootstrapServers: string;
+  activeBrokers: number;
+  activeConsumerGroups: number;
+  totalConsumerGroups: number;
+  outboxPollIntervalMs: number;
+  outboxBatchSize: number;
+  unpublishedOutboxCount: number;
+  lastOutboxRelayMs: number | null;
+  endToEndLatencyMs: number;
+  timestamp: string;
 }
