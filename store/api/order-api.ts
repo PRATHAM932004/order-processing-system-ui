@@ -16,10 +16,15 @@ import {
 } from "@/lib/types";
 import type { RootState } from "../index";
 
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const API_BASE_URL = rawApiUrl
+  ? `${rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "")}/api`
+  : "/backend-api";
+
 export const orderApi = createApi({
   reducerPath: "orderApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: "/backend-api",
+    baseUrl: API_BASE_URL,
     prepareHeaders: (headers, { getState }) => {
       headers.set("Content-Type", "application/json");
       let token = (getState() as RootState)?.auth?.token ?? null;
