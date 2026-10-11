@@ -17,7 +17,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Layers, Lock, Mail, Sparkles } from "lucide-react";
+import { Layers, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useLoginMutation } from "@/store/api/order-api";
 import { useAppDispatch } from "@/store";
@@ -31,25 +31,14 @@ export default function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      email: "admin@order.com",
-      password: "password123",
-      role: "ADMIN",
+      email: "",
+      password: "",
+      role: "CUSTOMER",
       rememberMe: true,
     },
   });
 
-  const { handleSubmit, setValue } = form;
-
-  const quickFill = (
-    email: string,
-    role: "ADMIN" | "INVENTORY_MANAGER" | "CUSTOMER",
-    label: string
-  ) => {
-    setValue("email", email);
-    setValue("password", "password123");
-    setValue("role", role);
-    toast.info(`Filled credentials for ${label}: ${email}`);
-  };
+  const { handleSubmit } = form;
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
@@ -91,44 +80,6 @@ export default function LoginPage() {
       </div>
 
       <Card className="p-6 space-y-5">
-        {/* Quick Demo Fill Buttons */}
-        <div className="space-y-2 pb-4 border-b border-border/60">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-primary" />
-            Seeded PostgreSQL Accounts (Password: password123):
-          </span>
-          <div className="grid grid-cols-2 gap-2.5 text-xs">
-            <button
-              type="button"
-              onClick={() =>
-                quickFill("admin@order.com", "ADMIN", "Admin")
-              }
-              className="px-3 py-2 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors text-left"
-            >
-              <span className="font-semibold block">Admin</span>
-              <span className="text-[10px] text-muted-foreground font-mono truncate block">
-                admin@order.com
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                quickFill(
-                  "inventory.manager@order.com",
-                  "INVENTORY_MANAGER",
-                  "Inventory Manager"
-                )
-              }
-              className="px-3 py-2 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors text-left"
-            >
-              <span className="font-semibold block">Inventory Manager</span>
-              <span className="text-[10px] text-muted-foreground font-mono truncate block">
-                inventory.manager@order.com
-              </span>
-            </button>
-          </div>
-        </div>
-
         {/* Login Form with FormProvider */}
         <Form {...form}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -159,12 +110,7 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel className="text-xs">Password</FormLabel>
-                    <span className="text-[11px] text-muted-foreground font-mono">
-                      Default: password123
-                    </span>
-                  </div>
+                  <FormLabel className="text-xs">Password</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
