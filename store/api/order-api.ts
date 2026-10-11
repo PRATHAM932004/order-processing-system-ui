@@ -2,6 +2,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import {
   Order,
   Customer,
+  CreateUserPayload,
+  UpdateUserRolePayload,
   Product,
   ProductPayload,
   UpdateStockPayload,
@@ -164,6 +166,24 @@ export const orderApi = createApi({
       providesTags: ["Customers"],
     }),
 
+    createUser: builder.mutation<Customer, CreateUserPayload>({
+      query: (body) => ({
+        url: "/customers",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Customers"],
+    }),
+
+    updateUserRole: builder.mutation<Customer, UpdateUserRolePayload>({
+      query: ({ id, role }) => ({
+        url: `/customers/${id}/role`,
+        method: "PATCH",
+        body: { role },
+      }),
+      invalidatesTags: ["Customers"],
+    }),
+
     getKafkaEvents: builder.query<KafkaEvent[], { orderId?: string } | void>({
       query: (args) => {
         if (args && "orderId" in args && args.orderId) {
@@ -194,6 +214,9 @@ export const {
   useDeleteProductMutation,
   useGetInventoryReservationsQuery,
   useGetCustomersQuery,
+  useCreateUserMutation,
+  useUpdateUserRoleMutation,
   useGetKafkaEventsQuery,
   useGetSystemStatusQuery,
 } = orderApi;
+

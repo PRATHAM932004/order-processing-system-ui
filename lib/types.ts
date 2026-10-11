@@ -44,6 +44,18 @@ export interface Customer {
   avatarUrl?: string;
 }
 
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}
+
+export interface UpdateUserRolePayload {
+  id: string;
+  role: UserRole;
+}
+
 export interface Product {
   id: string;
   name: string;

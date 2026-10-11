@@ -9,6 +9,7 @@ import {
   PlusCircle,
   GitBranch,
   Boxes,
+  Users,
   Layers,
   Radio,
   X,
@@ -32,6 +33,13 @@ const NAV_ITEMS: NavItem[] = [
     title: "Dashboard",
     href: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Users & Roles",
+    href: "/admin/users",
+    icon: Users,
+    badge: "RBAC",
+    roles: ["ADMIN"],
   },
   {
     title: "Inventory & Stock",

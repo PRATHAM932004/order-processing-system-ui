@@ -63,3 +63,13 @@ export const productFormSchema = z.object({
 });
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
+
+export const createUserFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid work email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["CUSTOMER", "INVENTORY_MANAGER", "ADMIN"]),
+});
+
+export type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
+

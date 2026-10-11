@@ -64,6 +64,8 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
       if (part === "orders") label = "Orders";
       else if (part === "new") label = "Place Order";
       else if (part === "inventory") label = "Inventory & Stock";
+      else if (part === "admin") label = "Admin";
+      else if (part === "users") label = "Users & Roles";
       else if (part === "kafka-stream") label = "Kafka Stream";
       else if (part === "auth") label = "Auth";
       else if (part === "login") label = "Login";
