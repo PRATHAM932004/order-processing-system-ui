@@ -1,4 +1,10 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
 import {
   Order,
   Customer,
@@ -17,36 +23,74 @@ import {
   SystemStatus,
 } from "@/lib/types";
 import type { RootState } from "../index";
+import { logout } from "../auth-slice";
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 const API_BASE_URL = rawApiUrl
   ? `${rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "")}/api`
   : "/backend-api";
 
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: API_BASE_URL,
+  prepareHeaders: (headers, { getState }) => {
+    headers.set("Content-Type", "application/json");
+    let token = (getState() as RootState)?.auth?.token ?? null;
+    if (!token && typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem("orderflow_auth");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          token = parsed?.token ?? null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    return headers;
+  },
+});
+
+const baseQueryWith401Logout: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error && result.error.status === 401) {
+    const url = typeof args === "string" ? args : args.url;
+    const isLoginEndpoint = url?.includes("/auth/login");
+
+    // Remove all tokens, user details, and Redux credentials
+    api.dispatch(logout());
+
+    // Reset RTK Query cache
+    api.dispatch({ type: "orderApi/resetApiState" });
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("orderflow_auth");
+        window.sessionStorage.clear();
+      } catch {
+        // ignore
+      }
+
+      // If not already on login page, proceed to logout and redirect to login again
+      if (!isLoginEndpoint && !window.location.pathname.startsWith("/auth/login")) {
+        window.location.href = "/auth/login";
+      }
+    }
+  }
+
+  return result;
+};
+
 export const orderApi = createApi({
   reducerPath: "orderApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: (headers, { getState }) => {
-      headers.set("Content-Type", "application/json");
-      let token = (getState() as RootState)?.auth?.token ?? null;
-      if (!token && typeof window !== "undefined") {
-        try {
-          const raw = window.localStorage.getItem("orderflow_auth");
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            token = parsed?.token ?? null;
-          }
-        } catch {
-          // ignore
-        }
-      }
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWith401Logout,
   tagTypes: [
     "Orders",
     "Order",
